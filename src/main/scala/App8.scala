@@ -1,6 +1,17 @@
 import org.apache.spark.{SparkConf, SparkContext}
 
 object App8 {
+  /**
+    * This simple program does the following :
+    * 1. Extract (key, value) pairs from a given file,
+    * 2. Group those pairs by keys, and sum those values to get a pair (key, sum of values)
+    * 3. Extract the maximum "sum-value", and divide it by two (let's call it HALF_MAX)
+    * 4. Prints out :
+    *   * The maximum value smaller than HALF_MAX
+    *   * The minimum value larger than HALF_MAX
+    *
+    * @param args the file ("small" or "large") to use
+    */
   def main(args: Array[String]): Unit = {
 
     val conf = new SparkConf().
@@ -13,7 +24,8 @@ object App8 {
 
     val lines = sc.textFile("hdfs:///cs449/data2_" +args(0)+ ".csv")
 
-    // First change : change map to mapPartitions (with preserving partitioning)
+    // First change : change map to mapPartitions (with preserving partitioning) to
+    // reduce the number of calls to map
     val rows = lines.mapPartitions(s => {
       val columns = s.map(_.split(",")).map(x => (x(0).toInt, x(1).toInt))
 
