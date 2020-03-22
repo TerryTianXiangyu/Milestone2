@@ -30,12 +30,18 @@ object App4 {
     // When we increase the driver memory, we better adapt the corresponding driver.maxResultSize. But in our project we cannot
     // change the configuration, we need to change codes only. From the root of problem, collecting all distributed results into
     // a single driver node causes the problem.
-    // Solution can be to reduce the amount of the results then send them to the driver. This is done in two ways:
-    // 1) Reduce already amount of data in each partition by reduceByKey
-    // 2) Put "collect" at the end od the operation, after the grouBy operation, we obtain less amount of data.
+    // Solution can be to reduce the amount of the results (so reduce result size) then send them to the driver. This is done by
+    // replacing groupBy and map by reduceByKey. We combine firstly some elements on each partition, reducing the elements being
+    // transferred over the network, then sum corresponding values together.
+
+    // Note that the final instance t2 has originally type Map[Int, Int], we add "toMap" to keep the same type.
 
     val t1 = rows.map(p => p._2 -> p._3/10).reduceByKey(_+_)
-    val t2 = t1.groupBy(_._1).map(kv => kv._1 -> kv._2.map(_._2).sum).collect
+    // original codes
+    //val t2 = t1.collect.groupBy(_._1).map(kv => kv._1 -> kv._2.map(_._2).sum)
+
+    // optimized codes
+    val t2 = t1.reduceByKey(_+_).collect.toMap
     t2.foreach(println)
   }
 }

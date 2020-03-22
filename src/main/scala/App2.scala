@@ -25,19 +25,23 @@ object App2 {
 
     // When use textFile method, data will be divided into partitions. The default size of a block in HDFS is 128 MB.
     // The large dataset has size 1.4 GB which is divided into 12 partitions. However, in App 2, we are having 200 partitions.
-    // Having more partitions might reduce runtime. However, it is horrible to shuffle elements from at least 200 partitions.
-    // A lot of data are transferred over the network while they are not necessary to.
-    // Using groubBy, we have much more partitions than in App 1, so much more element to shuffle and gather to the driver.
-    // Thus, the program launched TaskResultLost error. This is usually due to the fact that we are bringing a large amount
-    // of data into driver, which does not fit the driver node.
+    // Having more partitions might reduce runtime. However, this does not reduce data being transferred over the network since
+    // the codes were using groupBy.
+    // Thus, besides OOM error, the program also showed TaskResultLost error. This is usually due to the fact that we are bringing
+    // a large amount of data into driver, which does not fit the driver node.
 
-    // Our solution is firstly to move "collect" at the end of the rdd operation, so that more applications can be perform in paraller
-    // and reduce the amount of data collected to the driver. Secondly, as aforementioned, we want to reduce the shuffling over the
-    // network. Thus before transfer data, we reduce the amount of elements in each partitions using reduceByKey, which saves a lot
-    // of time.
+    // Our solution is firstly to replace groupBy and map by reduceByKey in order to reduce the amount of data shuffling over the network.
+    // Then, we need also to call "collect" on smaller data. But since reduceByKey reduces to minimal amount of results, we can
+    // "collect" right after. The summation part in the last "map" function is already done by reduceByKey.
 
-    val t1 = rows.map(p => p._2 -> p._3/10).reduceByKey(_+_)
-    val t2 = t1.groupBy(_._1).map(kv => kv._1 -> kv._2.map(_._2).sum).collect
+    // Note that the final instance t2 has originally type Map[Int, Int], we add "toMap" to keep the same type.
+
+    val t1 = rows.map(p => p._2 -> p._3/10)
+    // original codes
+    //val t2 = t1.collect.groupBy(_._1).map(kv => kv._1 -> kv._2.map(_._2).sum)
+
+    // optimized codes
+    val t2 = t1.reduceByKey(_+_).collect.toMap
     t2.foreach(println)
   }
 }

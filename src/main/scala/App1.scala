@@ -34,20 +34,23 @@ object App1 {
     // Log indicates the original code has ExecutorLostFailure error which is due to OOM (OutOfMemoryError)
     // Exception in thread thread_name: java.lang.OutOfMemoryError: Java heap space
     // According to the documentation, "the detail message Java heap space indicates object could not be allocated in the Java heap."
-    // In our case, it should be " for a long-lived application, the message might be an indication that the application is
+    // In our case, it should be "for a long-lived application, the message might be an indication that the application is
     // unintentionally holding references to objects, and this prevents the objects from being garbage collected."
     // Note that we are using groupBy initially. And using groupBy, we are shuffling all elements of each partition through
-    // networks. But if we can combine first elements on each partition, large amount of data can be avoided being transferred.
-    // Thus our optimization is that we sum first elements on the same partition, then send resulted elements over the network
-    // in order to combine with other elements. This does not raise problem since addition is associative.
+    // networks.
+    // Thus our optimization is to replace groupBy and map by reduceByKey, we combine firstly some elements on each partition, reduce the elements
+    // being transferred over the network. Since App 1 sums over all values after "groupBy", and addition is associative,
+    // we simply use addition function for the parameter of reduceByKey.
 
-    // since we largely reduce amount of data being transferred, we can collect to the driver. Or else, collect can be done
-    // at the end of the operation. (i.e. val t2 = t1.groupBy(_._1).map(kv => kv._1 -> kv._2.map(_._2).sum).collect) Note
-    // that in our situation (compute with "large" dataset), put "collect" where it was or to the end do not change runtime
-    // Thus, we decide to keep its original location due to rule: make less changes possible)
+    // Note that the final instance t2 has originally type Map[Int, Int], we add "toMap" to keep the same type.
 
-    val t1 = rows.map(p => p._2 -> p._3/10).reduceByKey(_+_)
-    val t2 = t1.collect.groupBy(_._1).map(kv => kv._1 -> kv._2.map(_._2).sum)
+    val t1 = rows.map(p => p._2 -> p._3/10)
+    // original codes
+    //val t2 = t1.collect.groupBy(_._1).map(kv => kv._1 -> kv._2.map(_._2).sum)
+
+    // optimized codes
+    val t2 = t1.reduceByKey(_+_).collect.toMap
+
     t2.foreach(println)
   }
 }
