@@ -42,12 +42,12 @@ object App1 {
 
     Note that the final instance t2 has originally type Map[Int, Int], we add "toMap" to keep the same type.
 */
-    // add more partition to RDD by "repartition"
-    val t1 = rows.repartition(30).map(p => p._2 -> p._3/10)
+    val t1 = rows.map(p => p._2 -> p._3/10)
     // original codes
-    //val t2 = t1.reduceByKey(_+_).collect.toMap
+    //val t2 = t1.collect.groupBy(_._1).map(kv => kv._1 -> kv._2.map(_._2).sum)
 
     // optimized codes
+    // replace groupBy and sum by reduceByKey, map tp toMap
     val t2 = t1.reduceByKey(_+_).collect.toMap
     t2.foreach(println)
   }
