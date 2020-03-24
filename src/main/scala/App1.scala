@@ -19,38 +19,36 @@ object App1 {
       val c = line.split(",")
       (c(0), c(1).toInt, c(2).toInt)
     })
+/*
+    What App 1 does
+    App 1 is collecting and summing c(2) of same users representing by c(1).
+    App 1 retrieves firstly useful data and store as RDD
+    Each data is then transformed into tuples with corresponding values (modified or not)
+    Next, all data are collected to the driver
+    Afterwards, all data are grouped by the first value(key) in tuple, and values having the same key are summed
+    Finally, base on the pair (key, new summed values), App 1 create a map named t2 and print all its pairs.
 
-    // can we know what is c(2) ?
-    // c(1) is probably app id, c(0) is user name
+    Log indicates the original code has ExecutorLostFailure error which is due to OutOfMemoryError.
+    "Exception in thread thread_name: java.lang.OutOfMemoryError: Java heap space" for "map at App1.scala:22"
+    Container was killed on request and caused ExecutorLostFailure. There was no more enough space for executor and the task
+    is too heavy for an executor in terms of memory required. Since we cannot modify configuration(i.e. increase executor/driver
+    memory). We tried to create more partitions in order to reduce its size by repartition. However, OOM raised again OOM
+    because of collecting large data into the driver.The codes collect first all processed data and then combine certain data
+    together. This raised error when the data is huge. We can solve this problem by move "collect" to the end of operations so that
+    there are less data being transferred into driver. Nevertheless, this still consume much time.
+    Thus, our solution consists of more efficient way to accomplish the task. That is to reduce the results elements before calling
+    "collect". We synthesize operations by reduceByKey, which replaces groupBy and map-sum operation. In this manner, data are
+    largely reduced and program does not yield errors.
 
-    // App 1 is collecting and summing c(2) of same users representing by c(1).
-    // Before summing c(2), their value are divide by ten (integer division)
-    // Finally, user id and the corresponding value are both printed out.
-
-    // c(0) is not used in our computaton codes.
-    // With or without c(0) do not change runtime.
-    // Since we need the minimal changes, we do not remove c(0)
-
-    // Log indicates the original code has ExecutorLostFailure error which is due to OOM (OutOfMemoryError)
-    // Exception in thread thread_name: java.lang.OutOfMemoryError: Java heap space
-    // According to the documentation, "the detail message Java heap space indicates object could not be allocated in the Java heap."
-    // In our case, it should be "for a long-lived application, the message might be an indication that the application is
-    // unintentionally holding references to objects, and this prevents the objects from being garbage collected."
-    // Note that we are using groupBy initially. And using groupBy, we are shuffling all elements of each partition through
-    // networks.
-    // Thus our optimization is to replace groupBy and map by reduceByKey, we combine firstly some elements on each partition, reduce the elements
-    // being transferred over the network. Since App 1 sums over all values after "groupBy", and addition is associative,
-    // we simply use addition function for the parameter of reduceByKey.
-
-    // Note that the final instance t2 has originally type Map[Int, Int], we add "toMap" to keep the same type.
-
-    val t1 = rows.map(p => p._2 -> p._3/10)
+    Note that the final instance t2 has originally type Map[Int, Int], we add "toMap" to keep the same type.
+*/
+    // add more partition to RDD by "repartition"
+    val t1 = rows.repartition(30).map(p => p._2 -> p._3/10)
     // original codes
-    //val t2 = t1.collect.groupBy(_._1).map(kv => kv._1 -> kv._2.map(_._2).sum)
+    //val t2 = t1.reduceByKey(_+_).collect.toMap
 
     // optimized codes
     val t2 = t1.reduceByKey(_+_).collect.toMap
-
     t2.foreach(println)
   }
 }
