@@ -23,4 +23,4 @@ and those messages of the executor, which corresponds to one message informing u
 
 ### Solution
 
-The main idea of the fix to that problem was to modify the code to forcing the reshuffle of the data after computing the sum associated to each key, thus balancing the load to all executors.
+The  fix to that problem was to define a custom range partitioner instead of the default hash one.

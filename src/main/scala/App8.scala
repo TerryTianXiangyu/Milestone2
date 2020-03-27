@@ -1,4 +1,4 @@
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.{RangePartitioner, SparkConf, SparkContext}
 
 object App8 {
   /**
@@ -23,23 +23,20 @@ object App8 {
     val sc = SparkContext.getOrCreate(conf)
 
     val lines = sc.textFile("hdfs:///cs449/data2_" +args(0)+ ".csv")
+    val rows = lines.map(s => {
+      val columns = s.split(",")
+      val k = columns(0).toInt
+      val v = columns(1).toInt
+      (k, v)
+    })
 
-    // First change : change map to mapPartitions (with preserving partitioning) to
-    // reduce the number of calls to map
-    val rows = lines.mapPartitions(s => {
-      val columns = s.map(_.split(",")).map(x => (x(0).toInt, x(1).toInt))
+    // Solution : Use a custom partitioner instead of the
+    // default hash partitioner
+    val partitioner = new RangePartitioner(50, rows)
+    val partitioned = rows.partitionBy(partitioner)
 
-      columns
-    }, true)
-
-    // Second change : Change the groupBy  + map to reduceByKey (less shuffling around as it starts reducing
-    // before sending results)
-    val sum = rows.reduceByKey(_ + _)
-
-    // Third change : change map to mapParitions (but without preserving partioning, as
-    // data seems skewed and tended to all be on one executor)
-    val sumvals = sum.mapPartitions(x => x.map(_._2), false)
-
+    val sum = partitioned.groupBy((r: (Int, Int)) => r._1).map{case (k, l) => k -> l.map(_._2).sum}
+    val sumvals = sum.map(_._2)
     val mid = sumvals.reduce(Math.max(_, _))/2
     val maxLT = sumvals.filter(_ < mid).reduce(Math.max(_, _))
     val minGT = sumvals.filter(_ > mid).reduce(Math.min(_, _))
