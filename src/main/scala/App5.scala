@@ -18,12 +18,9 @@ object App5 {
       val v = columns(1).toInt
       (k, v)
     })
-    val extendedRows = rows.mapPartitions(it  => {
-      val l = it.toList
-      val l2 = l.flatMap(x => (2 to 50).map(i => (x._1, x._2 % i)))
-      l2.iterator
-    })
-    val sum = extendedRows.groupBy(_._1).map { case (k, l) => k -> l.map(_._2).sum}
-    sum.collect().foreach(println)
+
+    val sum = rows.groupBy(_._1).map{case (z) => z._1 -> z._2.foldLeft(0){case(acc, n) => acc + (2 to 50).foldLeft(0){case (acc2, i) => acc2 + (n._2 % i)}}}
+    sum.collect().foreach{case (x1, x2) => println("1: " + x1 + " 2: " + x2)}
+
   }
 }
