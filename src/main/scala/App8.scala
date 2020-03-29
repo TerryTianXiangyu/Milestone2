@@ -1,6 +1,17 @@
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.{RangePartitioner, SparkConf, SparkContext}
 
 object App8 {
+  /**
+    * This simple program does the following :
+    * 1. Extract (key, value) pairs from a given file,
+    * 2. Group those pairs by keys, and sum those values to get a pair (key, sum of values)
+    * 3. Extract the maximum "sum-value", and divide it by two (let's call it HALF_MAX)
+    * 4. Prints out :
+    *   * The maximum value smaller than HALF_MAX
+    *   * The minimum value larger than HALF_MAX
+    *
+    * @param args the file ("small" or "large") to use
+    */
   def main(args: Array[String]): Unit = {
 
     val conf = new SparkConf().
@@ -18,7 +29,13 @@ object App8 {
       val v = columns(1).toInt
       (k, v)
     })
-    val sum = rows.groupBy((r: (Int, Int)) => r._1).map{case (k, l) => k -> l.map(_._2).sum}
+
+    // Solution : Use a custom partitioner instead of the
+    // default hash partitioner
+    val partitioner = new RangePartitioner(50, rows)
+    val partitioned = rows.partitionBy(partitioner)
+
+    val sum = partitioned.groupBy((r: (Int, Int)) => r._1).map{case (k, l) => k -> l.map(_._2).sum}
     val sumvals = sum.map(_._2)
     val mid = sumvals.reduce(Math.max(_, _))/2
     val maxLT = sumvals.filter(_ < mid).reduce(Math.max(_, _))
