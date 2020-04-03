@@ -28,7 +28,7 @@ object App7 {
     result.collect.foreach(println)
     */
 
-    // edit from here
+    //edit from here
     //save rdd2 as map, and broadcast it
     val pairs = rdd2.collectAsMap
     val broadCastMap = sc.broadcast(pairs)
@@ -48,6 +48,6 @@ object App7 {
     //use reduceByKey to add the values 
     val result = filtered.map {case (k, (_, v2)) => (k, v2)}.reduceByKey(_ + _)
     result.collect.foreach(println)
-
+    //edit finish
   }
 }
